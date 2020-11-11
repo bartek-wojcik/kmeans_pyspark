@@ -9,10 +9,6 @@ def map_line_to_vector(line):
     return tuple(map(float, line.split()))
 
 
-def map_line_to_centroid(line):
-    return map_line_to_vector(line), ()
-
-
 conf = SparkConf()
 sc = SparkContext(conf=conf)
 
@@ -22,16 +18,22 @@ vectors = lines.map(map_line_to_vector)
 
 # Read random centroids
 lines = sc.textFile('3b.txt')
-random_centroids = lines.map(map_line_to_vector).collect()
+random_centroids = lines.map(map_line_to_vector).collect()[:CLUSTERS]
 
 # Read farthest centroids
 lines = sc.textFile('3c.txt')
-farthest_centroids = lines.map(map_line_to_vector).collect()
+farthest_centroids = lines.map(map_line_to_vector).collect()[:CLUSTERS]
 
 
-def assign_point_to_centroid(point, centroids, distance_function):
+def vector_difference(point, centroid):
+    return [e1 - e2 for e1, e2 in zip(point, centroid)]
+
+
+def assign_point_to_centroid(point, centroids, distance_function, cost_function):
     distances = list(map(lambda centroid: distance_function(centroid, point), centroids))
-    return distances.index(min(distances)), point
+    min_index = distances.index(min(distances))
+    cost = cost_function(centroids[min_index], point)
+    return min_index, point, cost
 
 
 def manhattan_distance(centroid, point):
@@ -55,11 +57,23 @@ def print_centroids(centroids):
         print(centroid)
 
 
-def kmeans(vectors, centroids, distance_function):
+def cost_euclidean(centroid, point):
+    vector = vector_difference(point, centroid)
+    return sqrt(sum(e ** 2 for e in vector)) ** 2
+
+
+def cost_manhattan(centroid, point):
+    vector = vector_difference(point, centroid)
+    return sqrt(sum(e ** 2 for e in vector)) ** 2
+
+
+def kmeans(vectors, centroids, distance_function, cost_function):
     for iteration in range(MAX_ITERATIONS):
-        assignments = vectors.map(lambda vector: assign_point_to_centroid(vector, centroids, distance_function))
-        centroids = assignments.groupByKey().map(lambda group: map_group_to_centroid(group)).collect()
+        assignments = vectors.map(lambda vector: assign_point_to_centroid(vector, centroids, distance_function, cost_function))
+        cost = assignments.map(lambda assigment: assigment[2]).sum()
+        print(cost)
+        centroids = assignments.map(lambda assigment: (assigment[0], assigment[1])).groupByKey().map(lambda group: map_group_to_centroid(group)).collect()
     print_centroids(centroids)
 
 
-kmeans(vectors, random_centroids, euclidean_distance)
+kmeans(vectors, random_centroids, euclidean_distance, cost_euclidean)
