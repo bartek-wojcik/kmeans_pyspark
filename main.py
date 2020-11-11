@@ -1,5 +1,6 @@
 from pyspark import SparkConf, SparkContext
 from math import sqrt
+from matplotlib import pyplot as plt
 
 MAX_ITERATIONS = 20
 CLUSTERS = 10
@@ -68,12 +69,25 @@ def cost_manhattan(centroid, point):
 
 
 def kmeans(vectors, centroids, distance_function, cost_function):
+    costs = []
     for iteration in range(MAX_ITERATIONS):
-        assignments = vectors.map(lambda vector: assign_point_to_centroid(vector, centroids, distance_function, cost_function))
+        assignments = vectors.map(
+            lambda vector: assign_point_to_centroid(vector, centroids, distance_function, cost_function))
         cost = assignments.map(lambda assigment: assigment[2]).sum()
-        print(cost)
-        centroids = assignments.map(lambda assigment: (assigment[0], assigment[1])).groupByKey().map(lambda group: map_group_to_centroid(group)).collect()
-    print_centroids(centroids)
+        costs.append(cost)
+        centroids = assignments.map(lambda assigment: (assigment[0], assigment[1])).groupByKey().map(
+            lambda group: map_group_to_centroid(group)).collect()
+    # print_centroids(centroids)
+    print(f'Difference between 1 and 10 iteration: {costs[0] / costs[9] * 100}%')
+    iterations = range(1, MAX_ITERATIONS + 1)
+    plt.plot(iterations, costs)
+    plt.xlabel('Iteration')
+    plt.ylabel('Cost')
+    plt.xticks(iterations)
+    plt.show()
 
 
+kmeans(vectors, random_centroids, manhattan_distance, cost_manhattan)
 kmeans(vectors, random_centroids, euclidean_distance, cost_euclidean)
+kmeans(vectors, farthest_centroids, manhattan_distance, cost_manhattan)
+kmeans(vectors, farthest_centroids, euclidean_distance, cost_euclidean)
