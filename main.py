@@ -26,10 +26,6 @@ lines = sc.textFile('3c.txt')
 farthest_centroids = lines.map(map_line_to_vector).collect()[:CLUSTERS]
 
 
-def vector_difference(point, centroid):
-    return [e1 - e2 for e1, e2 in zip(point, centroid)]
-
-
 def assign_point_to_centroid(point, centroids, distance_function, cost_function):
     distances = list(map(lambda centroid: distance_function(centroid, point), centroids))
     min_index = distances.index(min(distances))
@@ -59,13 +55,11 @@ def print_centroids(centroids):
 
 
 def cost_euclidean(centroid, point):
-    vector = vector_difference(point, centroid)
-    return sqrt(sum(e ** 2 for e in vector)) ** 2
+    return euclidean_distance(centroid, point) ** 2
 
 
 def cost_manhattan(centroid, point):
-    vector = vector_difference(point, centroid)
-    return sqrt(sum(e ** 2 for e in vector)) ** 2
+    return manhattan_distance(centroid, point)
 
 
 def kmeans(vectors, centroids, distance_function, cost_function):
@@ -78,7 +72,7 @@ def kmeans(vectors, centroids, distance_function, cost_function):
         centroids = assignments.map(lambda assigment: (assigment[0], assigment[1])).groupByKey().map(
             lambda group: map_group_to_centroid(group)).collect()
     # print_centroids(centroids)
-    print(f'Difference between 1 and 10 iteration: {costs[0] / costs[9] * 100}%')
+    print(f'Difference between 1 and 10 iteration: {(costs[0] - costs[9]) / costs[0] * 100}%')
     iterations = range(1, MAX_ITERATIONS + 1)
     plt.plot(iterations, costs)
     plt.xlabel('Iteration')
